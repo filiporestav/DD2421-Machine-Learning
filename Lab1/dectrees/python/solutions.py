@@ -1,6 +1,9 @@
 import monkdata as m
 import dtree as d
 import random
+import drawtree_qt5 as draw
+import matplotlib.pyplot as plt
+import numpy as np
 
 class Tree():
     def __init__(self, root):
@@ -70,8 +73,8 @@ class Lab1():
 
         # Print the values of the root node
         values_dict = {}
-        for v in root.values:
-            #print(f"  {v}:")
+        for v in root.values: # For each value of the root node (1-4 for A5)
+            #print(f"Value {v}:")
             list_of_values = []
             for x in d.select(monk, root, v):
                 #print(f"    {x}")
@@ -98,7 +101,27 @@ class Lab1():
         ldata = list(data)
         random.shuffle(ldata)
         breakPoint = int(len(ldata) * fraction)
-        return ldata[:breakPoint], ldata[breakPoint:]    
+        return ldata[:breakPoint], ldata[breakPoint:]
+    
+    def test_fractions(self, monkdata, n, fractions):
+        error_avg_arr = np.array([])
+        error_std_arr = np.array([])
+
+        for fraction in fractions:
+            fraction_error = np.array([])
+            for i in range(n):
+                train, val = self.partition(monkdata, fraction)
+                monk1tree = d.buildTree(train, m.attributes)
+                # Get all the possible pruned trees
+                monk1pruned_trees = d.allPruned(monk1tree)
+                # Pick the tree with the best performance on validation set
+                best_tree = max(monk1pruned_trees, key=lambda t: d.check(t, val))
+                fraction_error = np.append(fraction_error, 1 - d.check(best_tree, val))
+
+            error_avg_arr = np.append(error_avg_arr, fraction_error.mean())
+            error_std_arr = np.append(error_std_arr, fraction_error.std())
+
+        return error_avg_arr, error_std_arr
 
 def __main__():
     lab = Lab1()
@@ -136,20 +159,7 @@ def __main__():
     print("Error rate on test data", 1 - d.check(monk3tree, m.monk3test))
     print()
 
-    """
-    Write code which performs the complete pruning by repeatedly calling
-    allPruned and picking the tree which gives the best classification performance on the validation dataset. You should stop pruning when all the
-    pruned trees perform worse than the current candidate.
-    """
-    possible_trees = d.allPruned(monk1tree)
-    print("Number of possible trees for monk1:", len(possible_trees))
-    # Find the best tree for monk1
-    best_tree = None
-    for i in range(len(possible_trees)):
-        if best_tree is None or d.check(possible_trees[i], m.monk1) > d.check(best_tree, m.monk1):
-            best_tree = possible_trees[i]     
-    print("Best tree for monk1:", best_tree)
-
+    # draw.drawTree(monk3tree)
 
     """
     Evaluate the effect pruning has on the test error for
@@ -164,31 +174,32 @@ def __main__():
     of the spread. Do remember to print axes labels, legends and data
     points as you will not pass without them
     """
+    n = 10000
     fractions = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
-    n=1000
-    fractions_errors = {}
-    for fraction in fractions:
-        val_errors = 0
-        deviations_sqrd_sum = 0
-        for i in range(n):
-            # Split the data into training and validation sets
-            monk1train, monk1val = lab.partition(m.monk1, fraction)
-            
-            # Calculate the error rate for the training and validation sets
-            tree = d.buildTree(monk1train, m.attributes)
-            val_errors += 1 - d.check(tree, monk1val)
+    error_avg_arr_monk1, error_std_arr_monk1 = lab.test_fractions(m.monk1, n, fractions)
+    error_avg_arr_monk3, error_std_arr_monk3 = lab.test_fractions(m.monk3, n, fractions)
 
-            # Calculate the standard deviation
-            deviations_sqrd_sum += (1 - d.check(tree, monk1val))**2
+    # Create side-by-side subplots
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 
-        val_errors /= n
-        deviations_sqrd_sum /= n
-        std = (deviations_sqrd_sum - val_errors**2)**0.5
-        fractions_errors[fraction] = (val_errors, std)
-    
-    print("Validation errors for different fractions:")
-    for key, value in fractions_errors.items():
-        print(f"  {key}: {value}")
+    # Plot for Monk 1
+    axs[0].errorbar(fractions, error_avg_arr_monk1, yerr=error_std_arr_monk1, fmt='o', color='blue', capsize=5, linestyle='-', marker='s')
+    axs[0].set_title('Monk 1', fontsize=14)
+    axs[0].set_xlabel('Fraction', fontsize=12)
+    axs[0].set_ylabel('Error rate (Test set)', fontsize=12)
+    axs[0].grid(True)
+
+    # Plot for Monk 3
+    axs[1].errorbar(fractions, error_avg_arr_monk3, yerr=error_std_arr_monk3, fmt='o', color='green', capsize=5, linestyle='-', marker='^')
+    axs[1].set_title('Monk 3', fontsize=14)
+    axs[1].set_xlabel('Fraction', fontsize=12)
+    axs[1].grid(True)
+
+    # Adjust the layout to prevent overlap and improve readability
+    plt.tight_layout()
+
+    # Show the plots
+    plt.show()
 
 
 __main__()
