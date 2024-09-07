@@ -111,9 +111,10 @@ class Lab1():
             fraction_error = np.array([])
             for i in range(n):
                 train, val = self.partition(monkdata, fraction)
-                monk1tree = d.buildTree(train, m.attributes)
+                # Build a tree on the training data
+                tree = d.buildTree(train, m.attributes)
                 # Get all the possible pruned trees
-                monk1pruned_trees = d.allPruned(monk1tree)
+                monk1pruned_trees = d.allPruned(tree)
                 # Pick the tree with the best performance on validation set
                 best_tree = max(monk1pruned_trees, key=lambda t: d.check(t, val))
                 fraction_error = np.append(fraction_error, 1 - d.check(best_tree, val))
@@ -174,7 +175,7 @@ def __main__():
     of the spread. Do remember to print axes labels, legends and data
     points as you will not pass without them
     """
-    n = 10000
+    n = 100
     fractions = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
     error_avg_arr_monk1, error_std_arr_monk1 = lab.test_fractions(m.monk1, n, fractions)
     error_avg_arr_monk3, error_std_arr_monk3 = lab.test_fractions(m.monk3, n, fractions)
